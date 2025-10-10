@@ -1,16 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+#Declaring the size of the simulation area
 width = 200
 height = 200
 
 grid = np.zeros((height, width))
-print(grid)
-plt.imshow(grid, origin='lower', cmap='binary')
-plt.title("100x100 Monitoring Grid")
-plt.xticks([])  # removes x-axis numbers
-plt.yticks([])  # removes y-axis numbers
+print(grid) #For errors
 
+#To Visualize the grid
+plt.imshow(grid, origin='lower', cmap='binary')
+plt.title("200x200 Monitoring Grid")
+plt.xticks([])  
+plt.yticks([])  
 plt.grid(False)
 
 
