@@ -34,27 +34,47 @@ for i, (x, y) in enumerate(locations):
 
 animal_scatter = ax1.scatter(animal[:, 0], animal[:, 1], color='green', s=50)
 
+# Creating The csv file that we willl send the data to 
+data = ["Camera 1", "Camera 2", "Camera 3", "Camera 4"]
+with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data.csv', 'w', newline='') as file_object:
+    writer = csv.writer(file_object)
+    writer.writerow(data)
+
+
+
 def update(frame):
     global animal, total_count, inside_counts
+
+
     # Random walk: small step in x and y
     step_size = 10
     steps = np.random.uniform(-step_size, step_size, size=animal.shape)
     animal += steps
     animal = np.clip(animal, [0, 0], [width, height])  # Keep within bounds
 
+
     # Update scatter plot
     animal_scatter.set_offsets(animal)
+
 
     # Reset counts
     inside_counts[:] = 0
     total = 0
    
+
     # Recalculate detections
     for i, (x, y) in enumerate(locations):
         count = detectAnimal(animal, x, y, detect_radius)
         inside_counts[i] = count
         total += count
         
+    #This block writes how much animals that each camera has detected
+    saw = [inside_counts[0], inside_counts[1], inside_counts[2],inside_counts[3]]
+    with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data.csv', 'a', newline='') as file_object:
+        writer = csv.writer(file_object)
+        writer.writerow(saw)
+    
+    
     total_count +=total
 
     ax1.set_title(f"Total Detected: {total_count}")
@@ -64,14 +84,3 @@ ani = FuncAnimation(fig, update, frames=range(0,timer), interval=500, repeat=Fal
 plt.show()
 print(f"The Average number of animals detected was {np.round(total_count/(timer+1), 2)}")
 print(f"Weighted average for the full area is: {(total_count/(timer+1))*((width*height)/(4*(math.pi*detect_radius*detect_radius)))}")
-
-data = [
-    ["Camera 1", "Camera 2", "Camera 3", "Camera 4"],
-    [ 1, 5, 6, 9],
-    [ 23, 23, 5, 87]
-]
-
-with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data.csv', 'w', newline='') as file_object:
-    writer = csv.writer(file_object)
-    writer.writerows(data)
-
