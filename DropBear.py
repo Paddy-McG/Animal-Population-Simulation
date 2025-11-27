@@ -5,7 +5,6 @@ import math
 import csv
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
-from sklearn.cluster import KMeans
 
 def detectAnimal(position, x, y, radius):
     dist = np.sqrt((position[:, 0] - x)**2 + (position[:, 1] - y)**2)
@@ -22,18 +21,14 @@ def updateCenter(animal):
                 [animal[3,0], animal[3,1]]]
      return Centers
 
-#Declaring the size of the simulation area 
 width = 200
 height = 200
 total_count = 0
-timer = 29
+timer = 199
 detect_radius = 25.0
-
 animal = np.round(np.random.rand(100,2) * [width, height], 2)
 
-#Declaring the amount of clusters and what movement we want (Random/Cluster)
-k = 4  
-movement = "Cluster"
+movement = "Random"
 centers = updateCenter(animal)
 
 locations = np.array([[50, 150], [150, 150], [50, 50], [150, 50]])
@@ -52,24 +47,18 @@ for i, (x, y) in enumerate(locations):
     ax1.add_patch(circle)
     ax1.text(x+2, y+2, f"C{i}", color='red', fontsize=9) 
 
-
 animal_scatter = ax1.scatter(animal[:, 0], animal[:, 1], color='green', s=50)
 cluster_scatter = ax1.scatter([], [], color='blue', marker='x', s=100, label='Cluster Center')
 
 # Creating The csv file that we willl send the data to 
 data = ["Camera 1", "Camera 2", "Camera 3", "Camera 4"]
-with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data.csv', 'w', newline='') as file_object:
+with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data1.csv', 'w', newline='') as file_object:
     writer = csv.writer(file_object)
     writer.writerow(data)
 
-
-
 def update(frame):
     global animal, total_count, inside_counts, centers
-
-
     if(movement == "Random"):
-
         # Random walk: small step in x and y
         step_size = 10
         steps = np.random.uniform(-step_size, step_size, size=animal.shape)
@@ -77,41 +66,63 @@ def update(frame):
         animal = np.clip(animal, [0, 0], [width, height])  # Keep within bounds
 
     elif(movement == "Cluster"):
-
         step_size = 5
-        kmeans = KMeans(n_clusters=k, n_init=10)
-        kmeans.fit(animal)
-        labels = kmeans.labels_
-        
-        # error detection    print(centers)
-
-        # Move each animal toward its cluster center
+        alphas = animal[:4]   # first 4 animals are alphas
         for i in range(len(animal)):
-            center = centers[labels[i]]
-            direction = center - animal[i]
-            norm = np.linalg.norm(direction)
-            if norm > 0:
-                direction = (direction / norm) * step_size
-            # Add a little randomness so they don’t overlap perfectly
-            jitter = np.random.uniform(-1, 1, size=2)
-            animal[i] += direction + 0.3 * jitter
+            if i >= 4:
+                # Non-alpha animals move toward nearest alpha
+                distances = [np.linalg.norm(animal[i] - alpha) for alpha in alphas]
+                nearest_idx = np.argmin(distances)
+                nearest_alpha = alphas[nearest_idx]
 
-        centers = updateCenter(animal)
-        # Keep animals inside bounds
+                direction = nearest_alpha - animal[i]
+                norm = np.linalg.norm(direction)
+                
+                if norm > 0:
+                    direction = (direction / norm) * step_size
+            
+                repulsion = np.zeros(2)
+                for j in range(len(animal)):
+                    if i != j:
+                        diff = animal[i] - animal[j]
+                        dist = np.linalg.norm(diff)
+                        if dist < 7.5:  # minimum spacing threshold
+                            repulsion += (diff / dist) * (15 - dist) * 0.5
+
+            # Add jitter so they don't overlap perfectly
+                jitter = np.random.normal(0, 1, size=2)  
+                animal[i] += direction + repulsion+ 0.3 * jitter
+
+            else:
+                step = np.random.normal(0, 4, size=2)  # mean=0, variance=2 this is called the brownian motion
+
+                #To prevent each cluster alpha from getting too close to one another
+                repulsion= np.zeros(2)
+                for j in range(0,4):
+                    if i != j:
+                        diff = animal[i] - animal[j]
+                        dist = np.linalg.norm(diff)
+                        if dist < 50:  #If they are inside a vector distance of 50 they get some repulsion from one another
+                            repulsion += (diff / dist) * (50 - dist) * 0.01
+                            
+                animal[i] += step + repulsion    
+                animal[i] = np.clip(animal[i], [0, 0], [width, height])
+
+        #Keep everyone inside bounds
         animal = np.clip(animal, [0, 0], [width, height])
 
-        cluster_scatter.set_offsets(centers)
-
-        # Color animals by cluster
+        #This block will update colors by nearest alpha(Cluster leader)
+        labels = []
+        for i in range(len(animal)):
+            distances = [np.linalg.norm(animal[i] - alpha) for alpha in alphas]
+            labels.append(np.argmin(distances))
         animal_scatter.set_color([plt.cm.tab10(label) for label in labels])
 
+        #Show alpha positions as cluster centers
+        cluster_scatter.set_offsets(alphas)
 
-
-    
-    
     # Update scatter plot
     animal_scatter.set_offsets(animal)
-
 
     # Reset counts before starting the detection
     inside_counts[:] = 0
@@ -123,30 +134,14 @@ def update(frame):
         inside_counts[i] = count
         total += count
 
-
     total_count += total
     ax1.set_title(f"Total Detected: {total_count}")
 
-    # --- KMeans clustering ---
-    #kmeans = KMeans(n_clusters=k, n_init=10)
-    #kmeans.fit(animal)
-    #labels = kmeans.labels_
-    #centers = kmeans.cluster_centers_
-
-    # Color animals by cluster
-    #animal_scatter.set_color([plt.cm.tab10(label) for label in labels])
-
-    # Update cluster centers
-    #cluster_scatter.set_offsets(centers)
-
-
     #---------- Writing the detection numbers to a csv file we created above ------------#
     saw = [inside_counts[0], inside_counts[1], inside_counts[2], inside_counts[3]]
-    with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data.csv', 'a', newline='') as file_object:
+    with open(r'C:\Users\patri\OneDrive\CompScience FinalYrProject\data1.csv', 'a', newline='') as file_object:
         writer = csv.writer(file_object)
         writer.writerow(saw)
-
-        
 
 # Animate
 ani = FuncAnimation(fig, update, frames=range(0,timer), interval=500, repeat=False)
